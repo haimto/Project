@@ -1,0 +1,252 @@
+1.	Create a deployment called webapp with image nginx with 5 replicas 
+a. Use the below command to create a yaml file. 
+i. 	kubectl create deploy webapp --image=nginx --dry-run -o yaml > webapp.yaml  ii. 	Edit it and add 5 replica’s 
+
+kubectl create deploy webapp --image=nginx --dry-run=client -o yaml > webapp.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp
+spec:
+  replicas: 5  <---- changed here
+  selector:
+    matchLabels:
+      app: webapp
+  template:
+    metadata:
+      labels:
+        app: webapp
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+		
+		kubectl apply -f webapp.yaml
+
+2.	Get the deployment rollout status
+kubectl rollout status deployment webapp 
+kubectl rollout status
+
+3.	Get the replicaset that created with this deployment 
+kubectl get replicaset -l app=webapp
+
+4.	EXPORT the yaml of the replicaset and pods of this deployment 
+kubectl get replicaset -l app=webapp -o yaml > replicaset.yaml
+
+5.	Delete the deployment you just created and watch all the pods are also being deleted 
+kubectl delete deployment webapp --cascade=foreground
+
+
+6.	Create a deployment of webapp with image nginx:1.17.1 with container port 80 and verify the image version 
+a.	kubectl create deploy webapp --image=nginx:1.17.1 --dry-run -o yaml > webapp.yaml 
+b.	add the port section (80)  and create the deployment 
+
+kubectl create deploy webapp --image=nginx:1.17.1 --dry-run=client -o yaml > webapp.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webapp
+  template:
+    metadata:
+      labels:
+        app: webapp
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.17.1
+        ports:                      <---- changed here
+        - containerPort: 80         <----
+		
+
+7.	Update the deployment with the image version 1.17.4 and verify 
+
+kubectl set image deployment/webapp nginx=nginx:1.17.4
+kubectl describe deployment webapp| grep -i "image:"
+
+8.	Check the rollout history and make sure everything is ok after the update 
+
+kubectl rollout history deployment webapp
+
+9.	Undo the deployment to the previous version 1.17.1 and verify Image has the previous version 
+kubectl rollout undo deployment/webapp
+kubectl describe deployment webapp | grep -i "image:"
+
+10.	Update the deployment with the wrong image version 1.100 and verify something is wrong with the deployment 
+a.	Expect: kubectl get pods (ImagePullErr) 
+b.	Undo the deployment with the previous version and verify everything is Ok 
+c.	kubectl rollout history deploy webapp --revision=7 
+d.	Check the history of the specific revision of that deployment 
+e.	update the deployment with the image version latest and check the history and verify nothing is going on 
+
+kubectl set image deployment/webapp nginx=nginx:1.100
+kubectl rollout status deployment/webapp ---> Waiting for deployment "webapp" rollout to finish: 1 old replicas are pending termination..
+
+buntu@ip-172-31-25-69:~/workarea/devopshift$ kubectl get pods
+NAME                      READY   STATUS             RESTARTS   AGE
+webapp-77b685f94f-hqvg6   0/1     ImagePullBackOff   0          3m53s
+
+kubectl rollout undo deployment/webapp
+
+kubectl rollout status deployment/webapp
+
+kubectl rollout history deployment webapp --revision=2
+
+kubectl set image deployment/webapp nginx=nginx:latest
+
+kubectl rollout history deployment webapp
+
+
+11.	Apply the autoscaling to this deployment with minimum 10 and maximum 20 replicas and target CPU of 85% and verify hpa is created and replicas are increased to 10 from 1 
+
+touch hpa.yaml
+
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: webapp-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: webapp
+  minReplicas: 10
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      targetAverageUtilization: 85
+
+kubectl apply -f hpa.yaml
+
+kubectl get hpa
+NAME         REFERENCE           TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+webapp-hpa   Deployment/webapp   <unknown>/85%   10        20        10         72s
+
+NAME                      READY   STATUS    RESTARTS   AGE
+webapp-84bc478888-9zf7v   1/1     Running   0          2m2s
+webapp-84bc478888-dqkm4   1/1     Running   0          2m1s
+webapp-84bc478888-fjnmw   1/1     Running   0          2m2s
+webapp-84bc478888-g65t7   1/1     Running   0          6m25s
+webapp-84bc478888-gws7n   1/1     Running   0          2m2s
+webapp-84bc478888-nkfx2   1/1     Running   0          2m1s
+webapp-84bc478888-s4kkv   1/1     Running   0          2m1s
+webapp-84bc478888-tvmxw   1/1     Running   0          2m1s
+webapp-84bc478888-vhw7x   1/1     Running   0          2m1s
+webapp-84bc478888-vq8hg   1/1     Running   0          2m1s
+
+
+
+12.  
+
+
+13.	Clean the cluster by deleting deployment and hpa you just created 
+
+kubectl delete hpa webapp-hpa
+
+kubectl delete deployment webapp
+
+
+14.	Create a job and make it run 10 times one after one (run > exit > run >exit ..) using the following configuration: 
+kubectl create job hello-job --image=busybox --dry-run -o yaml -- echo "Hello I am from job" > hello-job.yaml” 
+ 
+a. Add to the above job completions: 10 inside the yaml 
+ 
+ kubectl create job hello-job --image=busybox --dry-run=client -o yaml -- echo "Hello I am from job" > hello-job.yaml
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: hello-job
+spec:
+  completions: 10   <---- add here
+  template:
+    spec:
+      containers:
+      - name: hello-job
+        image: busybox
+        command: ["echo", "Hello I am from job"]
+      restartPolicy: Never
+ 
+ kubectl apply -f hello-job.yaml
+ 
+ 
+ 
+ 
+ 
+CONFIG MAP: 
+
+
+1.	Create a file called config.txt with two values key1=value1 and key2=value2 and 
+verify the file 
+cat >> config.txt << EOF 
+key1=value1 key2=value2 EOF 
+cat config.txt 
+נראה שרשמת את התשובה אז עשיתי כמוך:
+cat > config.txt <<EOF
+key1=value1
+key2=value2
+EOF
+
+cat config.txt
+
+key1=value1
+key2=value2
+
+2.	Create a configmap named keyvalcfgmap and read data from the file config.txt and verify that configmap is created correctly 
+
+kubectl create configmap keyvalcfgmap --from-file=config.txt
+kubectl describe configmap keyvalcfgmap
+
+
+3.	Create an nginx pod and load environment values from the above configmap keyvalcfgmap and exec into the pod and verify the environment variables and delete the pod 
+// first run this command to save the pod yml kubectl run nginx --image=nginx --restart=Never --dry-run -o yaml > nginx-pod.yml 
+
+nginx --image=nginx --restart=Never --dry-run -o yaml > nginx-pod.yml 
+ 
+vi nginx-pod.yml
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  restartPolicy: Never   
+  containers:
+  - name: nginx
+    image: nginx
+    envFrom:
+    - configMapRef:
+        name: keyvalcfgmap
+
+kubectl apply -f nginx-pod.yml
+kubectl wait --for=condition=Ready pod/nginx		
+kubectl exec -it nginx -- sh
+printenv
+
+# printenv
+KUBERNETES_PORT=tcp://100.64.0.1:443
+KUBERNETES_SERVICE_PORT=443
+HOSTNAME=nginx
+HOME=/root
+PKG_RELEASE=1~bookworm
+TERM=xterm
+NGINX_VERSION=1.25.2
+KUBERNETES_PORT_443_TCP_ADDR=100.64.0.1
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+NJS_VERSION=0.8.0
+KUBERNETES_PORT_443_TCP_PORT=443
+KUBERNETES_PORT_443_TCP_PROTO=tcp
+KUBERNETES_PORT_443_TCP=tcp://100.64.0.1:443
+KUBERNETES_SERVICE_PORT_HTTPS=443
+KUBERNETES_SERVICE_HOST=100.64.0.1
+PWD=/
+
+kubectl delete pod nginx

@@ -1,0 +1,86 @@
+	Type the command for:  
+1.   Get pods with label information 
+kubectl get pods --show-labels
+2.	Create 5 nginx pods in which two of them is labeled env=prod and three of them is labeled env=dev 
+
+kubectl run nginx-prod-1 --image=nginx --labels=env=prod
+kubectl run nginx-prod-2 --image=nginx --labels=env=prod
+kubectl run nginx-dev-1 --image=nginx --labels=env=dev
+kubectl run nginx-dev-2 --image=nginx --labels=env=dev
+kubectl run nginx-dev-3 --image=nginx --labels=env=dev
+
+3.	Verify all the pods are created with correct labels
+kubectl get pods --show-labels
+ 
+4.	Get the pods with label env=dev 
+kubectl get pods -l env=dev
+
+5.	Get the pods with label env=dev and also output the labels 
+
+kubectl get pods -l env=dev --show-labels
+
+6.	Get the pods with label env=prod
+kubectl get pods -l env=prod
+ 
+7.	Get the pods with label env=prod and also output the labels 
+kubectl get pods -l env=prod --show-labels
+
+8.	Get the pods with label env
+kubectl get pods -l env
+ 
+9.	Get the pods with labels env=dev and env=prod 
+kubectl get pods --selector env=dev,env=prod
+
+10.	Get the pods with labels env=dev and env=prod and output the labels as well
+kubectl get pods --selector env=dev,env=prod --show-labels
+ 
+11.	Change the label for one of the pod to env=uat and list all the pods to verify 
+kubectl label pod nginx-dev-1 env=uat --overwrite
+
+12.	Remove the labels for the pods that we created now and verify all the labels are removed
+kubectl label pods -l env=dev env-
+kubectl label pods -l env=prod env-
+kubectl label pods -l env=uat env-
+ 
+13.	Let’s add the label app=nginx for all the pods and verify (using kubectl)
+kubectl label pods --all app=nginx
+ 
+14.	Get all the nodes with labels (if using minikube you would get only master node) 
+kubectl get nodes --show-labels
+
+15.	Label the worker node nodeName=nginxnode 
+kubectl label node i-0dcfa483beafa9e57 nodeName=nginxnode
+
+16.	Create a Pod that will be deployed on the worker node with the label nodeName=nginxnode
+ 
+ 
+Add the nodeSelector to the below and create the pod 
+ 
+apiVersion: v1 kind: Pod metadata: 
+  creationTimestamp: null   labels: 
+    run: nginx   name: nginx spec: 
+  containers:   - image: nginx     name: nginx 
+    resources: {}   dnsPolicy: ClusterFirst   restartPolicy: Never status: {} 
+    
+    
+    
+    apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-node-selector
+spec:
+  nodeSelector:
+    nodeName: nginxnode
+  containers:
+  - name: nginx
+    image: nginx
+ 
+ kubectl label pod nginx-node-selector nodeName=nginxnode
+ 
+17.	Verify the pod that it is scheduled with the node selector on the right node… fix it if it’s not behind scheduled.
+
+  kubectl get pod nginx-node-selector -o wide
+  
+18.	Verify the pod nginx that we just created has this label
+
+kubectl get pod nginx-node-selector --show-labels 
